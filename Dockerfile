@@ -1,11 +1,37 @@
+FROM debian:latest as builder
+RUN apt-get update && \
+ apt-get install -yq git wget time build-essential cmake \
+ flex gawk m4 autoconf automake libtool-bin libltdl-dev libbz2-dev \
+ zlib1g-dev libcap2-bin
+WORKDIR /build
+RUN mkdir /build/hercpkgs && \ 
+git clone https://github.com/SDL-Hercules-390/crypto.git && \
+git clone https://github.com/SDL-Hercules-390/decNumber.git && \
+git clone https://github.com/SDL-Hercules-390/SoftFloat.git && \
+git clone https://github.com/SDL-Hercules-390/telnet.git && \
+git clone https://github.com/SDL-Hercules-390/hyperion.git && \
+/build/hyperion/util/bldlvlck && \
+mkdir -p /build/WORK/crypto && \
+cd /build/WORK/crypto && \
+/build/crypto/build --pkgname . --all --install /build/hercpkgs && \
+mkdir -p /build/WORK/decNumber && \
+cd /build/WORK/decNumber && \
+/build/decNumber/build --pkgname . --all --install /build/hercpkgs && \
+mkdir -p /build/WORK/SoftFloat && \
+cd /build/WORK/SoftFloat && \
+/build/SoftFloat/build --pkgname . --all --install /build/hercpkgs && \
+mkdir -p /build/WORK/telnet && \
+cd /build/WORK/telnet && \
+/build/telnet/build --pkgname . --all --install /build/hercpkgs && \
+cd /build/hyperion && \
+./configure --enable-cckd-bzip2 --enable-het-bzip2 --enable-extpkgs=$(realpath ../hercpkgs) --enable-optimization="-O3 -march=native" && \
+export NUMCPUS=`grep -c '^processor' /proc/cpuinfo` && \
+make -j$NUMCPUS --load-average=$NUMCPUS && \
+make install && \
+rm -rf /build
+
 FROM debian:latest
-RUN apt-get update && apt-get install -yq apt-utils git net-tools wget curl sudo time ncat build-essential cmake autoconf automake flex gawk m4 libtool libcap2-bin libbz2-dev zlib1g-dev
-# Create our user
-RUN useradd -ms /bin/bash hercules && adduser hercules sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-USER hercules
-WORKDIR /home/hercules
-
-RUN cd ~
-RUN git clone https://github.com/wrljet/hercules-helper.git
-RUN mkdir herctest && cd herctest && ~/hercules-helper/hyperion-buildall.sh --auto
+COPY --from=builder /usr/local /usr/local
+ENV LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib
+VOLUME ["/project"]
+EXPOSE 3270
