@@ -9,5 +9,7 @@ This creates a container of the newest hercules from source
 
 `docker push mainframed767/hercules:latest`
 
+:warning: to run this container you must use `docker run --cap-add=sys_nice`
+
 
 
