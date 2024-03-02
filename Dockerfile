@@ -15,7 +15,7 @@ WORKDIR /home/hercules
 RUN cd ~ \
     && git clone https://github.com/wrljet/hercules-helper.git \
     && mkdir herctest && cd herctest && \
-   ~/hercules-helper/hercules-buildall.sh --auto
+   ~/hercules-helper/hercules-buildall.sh --auto --flavor=sdl-hyperion
 
 FROM ubuntu:22.04
 RUN apt update \
