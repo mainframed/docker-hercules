@@ -12,7 +12,7 @@ on:
 jobs:
 # Sysgen
   mvsce-kicks:
-    name: MVS/CE Cross Platform Docker
+    name: Hercules SDL Builder
     runs-on: [ubuntu-latest]     
     steps:
       - name: Checkout
