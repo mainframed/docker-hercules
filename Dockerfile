@@ -1,6 +1,6 @@
 # to run this container you need to add --cap-add=sys_nice
 
-FROM debian:bookworm as builder
+FROM debian:trixie as builder
 RUN apt update \
     && apt install -y apt-utils \
     git net-tools wget curl sudo \
