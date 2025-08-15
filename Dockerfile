@@ -17,7 +17,7 @@ RUN cd ~ \
     && mkdir herctest && cd herctest && \
    ~/hercules-helper/hercules-buildall.sh --auto --flavor=sdl-hyperion
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 RUN apt update \
     && apt install -y libcap2-bin \
     && useradd -ms /bin/bash hercules 
