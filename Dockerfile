@@ -1,4 +1,8 @@
 FROM debian:trixie AS builder
+# Set by CI: HERCULES_REF=Release_x.y.z for releases, HERCULES_BRANCH=develop for develop.
+# Both empty = default branch HEAD.
+ARG HERCULES_BRANCH=""
+ARG HERCULES_REF=""
 RUN apt update \
     && apt install -y apt-utils \
     git net-tools wget curl sudo \
@@ -13,7 +17,9 @@ WORKDIR /home/hercules
 RUN cd ~ \
     && git clone https://github.com/wrljet/hercules-helper.git \
     && mkdir herctest && cd herctest && \
-    ~/hercules-helper/hercules-buildall.sh --auto --flavor=sdl-hyperion
+    ~/hercules-helper/hercules-buildall.sh --auto --flavor=sdl-hyperion \
+       ${HERCULES_BRANCH:+--git-branch=$HERCULES_BRANCH} \
+       ${HERCULES_REF:+--git-commit=$HERCULES_REF}
 
 FROM debian:trixie-slim
 RUN apt update \

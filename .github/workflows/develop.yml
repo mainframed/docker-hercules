@@ -1,19 +1,18 @@
+name: Hercules Develop Build
 
-name: Docker Builder
+# Manually triggered: builds the current HEAD of the SDL Hyperion "develop"
+# branch and pushes it to Docker Hub as mainframed767/hercules:develop.
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
+
+env:
+  IMAGE: mainframed767/hercules
+
 jobs:
-# Sysgen
-  mvsce-kicks:
-    name: Hercules SDL Builder
-    runs-on: [ubuntu-latest]     
+  develop:
+    name: Build Hercules develop branch
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +28,10 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          context: .
           platforms: linux/amd64,linux/arm64,linux/s390x,linux/riscv64
           push: true
-          tags: mainframed767/hercules:latest
+          no-cache: true
+          build-args: |
+            HERCULES_BRANCH=develop
+          tags: ${{ env.IMAGE }}:develop

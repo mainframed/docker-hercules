@@ -1,0 +1,87 @@
+name: Hercules Release Build
+
+# Builds the newest SDL Hyperion "Release_*" tag and pushes it to Docker Hub as
+# mainframed767/hercules:<version> (Release_ prefix removed) and :latest.
+# Runs daily and skips the build if that version is already on Docker Hub.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild even if this version already exists on Docker Hub"
+        type: boolean
+        default: false
+
+env:
+  IMAGE: mainframed767/hercules
+  UPSTREAM: https://github.com/SDL-Hercules-390/hyperion.git
+
+jobs:
+  release:
+    name: Build newest Hercules release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find newest release tag
+        id: ver
+        run: |
+          ref=$(git ls-remote --tags --refs "$UPSTREAM" 'Release_*' \
+                | sed 's#.*refs/tags/##' | sort -V | tail -n1)
+          [ -n "$ref" ] || { echo "No Release_* tags found"; exit 1; }
+          version="${ref#Release_}"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Newest release: $ref -> $IMAGE:$version"
+
+      - name: Check whether this version is already published
+        id: check
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "https://hub.docker.com/v2/repositories/$IMAGE/tags/${{ steps.ver.outputs.version }}")
+          event="${{ github.event_name }}"
+          force="${{ inputs.force }}"
+          # Scheduled runs (and unforced manual runs) skip versions already on Docker Hub.
+          # Pushes to main and PRs always build.
+          if [ "$code" = "200" ] && { [ "$event" = "schedule" ] || { [ "$event" = "workflow_dispatch" ] && [ "$force" != "true" ]; }; }; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "$IMAGE:${{ steps.ver.outputs.version }} already exists, skipping"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        if: steps.check.outputs.build == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: steps.check.outputs.build == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        if: steps.check.outputs.build == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # PRs only build amd64 as a smoke test and don't push
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64,linux/s390x,linux/riscv64' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            HERCULES_REF=${{ steps.ver.outputs.ref }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGE }}:latest
